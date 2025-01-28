@@ -8,7 +8,6 @@ import { ContractTypes } from "../../../config/ContractAddresses";
 import { useContractAddresses } from "../../../config/hooks/useContractAddress";
 import { astAbi } from "../../../contracts/astAbi";
 import { useStakingModalStore } from "../store/useStakingModalStore";
-import { ApprovalLogType } from "../types/StakingTypes";
 import { decodedApprovalEventLog } from "./utils/decodedApprovalEventLog";
 
 export const useApproveAst = ({
@@ -55,16 +54,20 @@ export const useApproveAst = ({
     onSuccess: async (transactionReceipt) => {
       if (!transactionReceipt?.logs || !airSwapToken?.address) return;
 
-      // Filter and map logs for compatibility with ApprovalLogType
-      const approvalLogs: ApprovalLogType[] = transactionReceipt.logs
-        .filter(
-          (log): log is Log<bigint, number> =>
-            log.address.toLowerCase() === airSwapToken.address!.toLowerCase(),
-        )
-        .map((log) => ({
-          ...log,
-          blockHash: log.blockHash ?? undefined, // Convert null to undefined for compatibility
-        }));
+      // Filter and ensure type compatibility
+      const approvalLogs = transactionReceipt.logs
+        .filter((log) => {
+          return (
+            log.address.toLowerCase() === airSwapToken.address!.toLowerCase() &&
+            log.blockHash !== null
+          );
+        })
+        .map((log) => {
+          return {
+            ...log,
+            blockHash: log.blockHash || undefined, // Ensure blockHash is not null
+          } as Log<bigint, number>; // Explicitly cast the log type
+        });
 
       const decodedValues = decodedApprovalEventLog(approvalLogs);
       decodedValues.forEach((value) => {
